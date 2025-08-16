@@ -1,29 +1,40 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"os"
 )
 
-func readFromFile1(filepath string) (string, error) {
+func readFromFile1(filepath string) error {
 	f, err := os.Open(filepath)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	var ans string
+	ans := ""
 
 	for {
 		buffer := make([]byte, 8)
 		n1, err := f.Read(buffer)
-
 		if err == io.EOF{
-			return ans, nil
+			break
 		}
-		if err != nil {
-			return "", err
+		data := buffer[:n1]
+		if i := bytes.IndexByte(data, '\n'); i != -1{
+			ans += string(data[:i])
+			data = data[i+1:]
+			fmt.Printf("read: %s\n", ans)
+			ans = ""
 		}
 
-		ans += string(buffer[:n1])
+		ans += string(data)
 	}
+
+	if len(ans) != 0 {
+		fmt.Printf("read: %s\n", ans)
+	}
+
+	return nil
 }
