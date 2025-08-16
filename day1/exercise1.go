@@ -26,12 +26,3 @@ func readFromFile(filepath string) error{
 		fmt.Printf("read: %s\n", b[:n1])
 	}
 }
-
-func main(){
-	// fmt.Printf("I hope I get the job!")
-	err := readFromFile("message.txt")
-	if err != nil {
-		log.Fatalf("Error while reading message.txt: %s\n", err)
-		return
-	}
-}
