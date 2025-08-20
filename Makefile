@@ -9,7 +9,7 @@ dev:
 
 # Run the application
 run:
-	@go run ./main.go
+	@go run ./cmd/tcplistener/main.go
 
 # Run tests
 test:
