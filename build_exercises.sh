@@ -44,7 +44,7 @@ MAIN_GO_CONTENT=$(cat main.go)
 
 # Create the markdown file
 cat > "$FILENAME" << EOF
-##### ${HEADING}
+## ${HEADING}
 \`\`\`
 ${MAIN_GO_CONTENT}
 \`\`\`

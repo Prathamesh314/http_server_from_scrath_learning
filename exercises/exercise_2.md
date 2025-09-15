@@ -1,4 +1,4 @@
-##### To read 8 bytes at a time but print whole line not just 8 bytes
+## To read 8 bytes at a time but print whole line not just 8 bytes
 
 ```
 package main

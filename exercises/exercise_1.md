@@ -1,4 +1,4 @@
-##### To read 8 bytes at a time.
+## To read 8 bytes at a time.
 ```
 package main
 
