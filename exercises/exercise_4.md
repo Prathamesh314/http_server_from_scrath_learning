@@ -1,10 +1,12 @@
+## setup tcp server
+```
 package main
 
 import (
 	"fmt"
 	"io"
 	"log"
-	"os"
+	"net"
 	"strings"
 )
 
@@ -50,15 +52,25 @@ func main() {
 	// read data 8 bytes at a time.
 	// but now print the entire line. not just 8 bytes
 
-	filepath := "message.txt"
-	f, err := os.Open(filepath)
+	listener, err := net.Listen("tcp", ":42069")
 	if err != nil {
-		log.Fatalf("Error in opening file: %s\n", err.Error())
+		log.Fatalf("Error while listening tcp at port 42069: %s\n", err.Error())
+		return
 	}
+	// log.Printf("Listening at port 42069.....")
 
-	lines := getLinesChannel(f)
+	defer listener.Close()
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatalf("Error in accepting new connection: %s\n", err.Error())
+			return
+		}
 
-	for line := range lines {
-		fmt.Printf("read: %s\n", line)
+		lines := getLinesChannel(conn)
+		for line := range lines {
+			fmt.Printf("read: %s\n", line)
+		}
 	}
 }
+```

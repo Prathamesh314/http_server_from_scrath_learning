@@ -11,7 +11,7 @@ fi
 HEADING="$1"
 
 # Check if main.go exists
-if [ ! -f "main.go" ]; then
+if [ ! -f "./cmd/tcplistener/main.go" ]; then
     echo "Error: main.go not found in current directory"
     exit 1
 fi
@@ -40,7 +40,7 @@ NEXT_NUM=$((LAST_NUM + 1))
 FILENAME="exercises/exercise_${NEXT_NUM}.md"
 
 # Read main.go content
-MAIN_GO_CONTENT=$(cat main.go)
+MAIN_GO_CONTENT=$(cat ./cmd/tcplistener/main.go)
 
 # Create the markdown file
 cat > "$FILENAME" << EOF
