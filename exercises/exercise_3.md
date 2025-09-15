@@ -1,3 +1,5 @@
+## reading from channel and printing the whole line by reading 8 bytes at a time
+```
 package main
 
 import (
@@ -62,3 +64,4 @@ func main() {
 		fmt.Printf("read: %s\n", line)
 	}
 }
+```
