@@ -1,3 +1,5 @@
+## Replaced getLinesFromChannel with our RequestReader
+```
 package main
 
 import (
@@ -76,3 +78,4 @@ func main() {
 		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s\n", r.RequestLine.Method, r.RequestLine.RequestTarget, r.RequestLine.HttpVersion)	
 	}
 }
+```
