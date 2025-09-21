@@ -1,3 +1,5 @@
+## Parsed all the headers with case-insensitivity
+```
 package headers
 
 import (
@@ -84,3 +86,4 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	return len_of_headers + len(SEPARATOR), true, nil
 }
+```
