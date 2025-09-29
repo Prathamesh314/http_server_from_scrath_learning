@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/Prathamesh314/http_server_from_scrath_learning/internal/headers"
 )
 
 var crlf = []byte("\r\n")
@@ -13,6 +15,7 @@ type ParseState int
 
 const (
 	StateInit ParseState = iota
+	StateHeaders
 	StateDone
 )
 
@@ -24,11 +27,15 @@ type RequestLine struct {
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     headers.Headers // Direct access for easier testing
 	State       ParseState
 }
 
 func newRequest() *Request {
-	return &Request{State: StateInit}
+	return &Request{
+		State:   StateInit,
+		Headers: headers.NewHeaders(), // Initialize headers
+	}
 }
 
 func (r *Request) isDone() bool {
@@ -66,9 +73,9 @@ func parseRequestLine(data []byte) (RequestLine, int, error) {
 	return rl, i + len(crlf), nil
 }
 
-// parse consumes bytes into the Request based on the current state.
+// parseSingle handles parsing for a single state transition
 // Returns (bytesConsumed, err). If it needs more data, returns (0, nil).
-func (r *Request) parse(data []byte) (int, error) {
+func (r *Request) parseSingle(data []byte) (int, error) {
 	switch r.State {
 	case StateInit:
 		rl, n, err := parseRequestLine(data)
@@ -79,7 +86,20 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, nil // need more bytes
 		}
 		r.RequestLine = rl
-		r.State = StateDone
+		r.State = StateHeaders
+		return n, nil
+
+	case StateHeaders:
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			return 0, nil // need more data
+		}
+		if done {
+			r.State = StateDone
+		}
 		return n, nil
 
 	case StateDone:
@@ -90,8 +110,33 @@ func (r *Request) parse(data []byte) (int, error) {
 	}
 }
 
+// parse consumes bytes into the Request based on the current state.
+// Returns (bytesConsumed, err). If it needs more data, returns (0, nil).
+func (r *Request) parse(data []byte) (int, error) {
+	totalBytesParsed := 0
+	
+	for r.State != StateDone {
+		n, err := r.parseSingle(data[totalBytesParsed:])
+		if err != nil {
+			return totalBytesParsed, err
+		}
+		if n == 0 {
+			// Need more data to continue parsing
+			return totalBytesParsed, nil
+		}
+		totalBytesParsed += n
+		
+		// If we've consumed all available data, break
+		if totalBytesParsed >= len(data) {
+			break
+		}
+	}
+	
+	return totalBytesParsed, nil
+}
+
 // RequestFromReader streams bytes from reader, parses incrementally,
-// and returns once the request-line is parsed.
+// and returns once the request is fully parsed.
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	req := newRequest()
 
@@ -127,7 +172,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			continue
 		}
 		if err == io.EOF {
-			// Reader ended; if not done, we didn't get a full request-line
+			// Reader ended; if not done, we didn't get a full request
 			if req.isDone() {
 				return req, nil
 			}
