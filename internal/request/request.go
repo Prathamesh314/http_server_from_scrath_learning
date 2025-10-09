@@ -16,6 +16,7 @@ type ParseState int
 const (
 	StateInit ParseState = iota
 	StateHeaders
+	StateBody
 	StateDone
 )
 
@@ -29,6 +30,7 @@ type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers // Direct access for easier testing
 	State       ParseState
+	Body        []byte
 }
 
 func newRequest() *Request {
@@ -42,6 +44,61 @@ func (r *Request) isDone() bool {
 	return r.State == StateDone
 }
 
+func (r *Request) validateBody() (bool, error) {
+	contentLengthStr := r.Headers.GET("Content-Length")
+	if contentLengthStr == "" {
+		return false, fmt.Errorf("content length is not present in headers")
+	}
+	var contentLength int
+	_, err := fmt.Sscanf(contentLengthStr, "%d", &contentLength)
+	if err != nil {
+		return false, fmt.Errorf("invalid Content-Length: %v", err)
+	}
+	if r.isDone() {
+		if len(r.Body) == contentLength {
+			return true, nil
+		}
+		return false, fmt.Errorf("body length does not match Content-Length")
+	}
+	return false, nil
+}
+
+func (r *Request) parseBody(data []byte) (int, bool, error) {
+	// Get the expected content length
+	contentLengthStr := r.Headers.GET("Content-Length")
+	var contentLength int
+	_, err := fmt.Sscanf(contentLengthStr, "%d", &contentLength)
+	if err != nil {
+		return 0, false, fmt.Errorf("invalid Content-Length: %v", err)
+	}
+
+	// Calculate how much more body data we need
+	remaining := contentLength - len(r.Body)
+
+	// If we already have all the data we need
+	if remaining == 0 {
+		return 0, true, nil
+	}
+
+	// Take only what we need from the available data
+	toConsume := len(data)
+	if toConsume > remaining {
+		toConsume = remaining
+	}
+
+	// Append the body data
+	r.Body = append(r.Body, data[:toConsume]...)
+
+	// Check if we're done or if we've exceeded the limit
+	if len(r.Body) > contentLength {
+		return 0, false, fmt.Errorf("body length (%d) exceeds Content-Length (%d)", len(r.Body), contentLength)
+	}
+
+	// Check if we've received all the body data
+	done := len(r.Body) == contentLength
+
+	return toConsume, done, nil
+}
 // parseRequestLine parses a single request-line from the head of data.
 // Returns (requestLine, bytesConsumedIncludingCRLF, err).
 // If no full line (no CRLF) is present yet, returns (zeroValue, 0, nil).
@@ -98,8 +155,34 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, nil // need more data
 		}
 		if done {
+			if found := r.Headers.GET("Content-Length"); len(found) == 0 {
+				// If there is no content lenght then we directly move on to StateDone
+				fmt.Println("Moving to StateDonoe")
+				r.State = StateDone
+			}else {
+				// We will parse the body
+				fmt.Println("Moving to StateBody")
+				r.State = StateBody
+			}
+		}
+		return n, nil
+
+	case StateBody:
+		// append all the data to .Body field
+		n, done, err := r.parseBody(data)
+		if err != nil {
+			return 0, err
+		}
+
+		if n == 0 {
+			// We need more data
+			return 0, nil
+		}
+
+		if done {
 			r.State = StateDone
 		}
+
 		return n, nil
 
 	case StateDone:
@@ -114,7 +197,7 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 // Returns (bytesConsumed, err). If it needs more data, returns (0, nil).
 func (r *Request) parse(data []byte) (int, error) {
 	totalBytesParsed := 0
-	
+
 	for r.State != StateDone {
 		n, err := r.parseSingle(data[totalBytesParsed:])
 		if err != nil {
@@ -125,13 +208,13 @@ func (r *Request) parse(data []byte) (int, error) {
 			return totalBytesParsed, nil
 		}
 		totalBytesParsed += n
-		
+
 		// If we've consumed all available data, break
 		if totalBytesParsed >= len(data) {
 			break
 		}
 	}
-	
+
 	return totalBytesParsed, nil
 }
 
